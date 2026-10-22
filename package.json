@@ -5,7 +5,7 @@
   "description": "TypeScript server with Supabase score storage for the Snake game",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node dist/server.js",
+    "start": "npm run build && node dist/src/server.js",
     "test": "npm run build && node --test dist/server.test.js"
   },
   "engines": {

@@ -51,7 +51,7 @@ deployment environment, then redeploy. The `api/scores.ts` function serves
 `/api/scores` and handles browser CORS preflight requests.
 
 Leave Vercel's Output Directory unset so it detects the `api/` function.
-`api/scores.ts` is the recommended function entry point; `server.ts` also
-exports a default request handler for deployments configured to use it directly.
-The local HTTP server still starts with `npm start`.
+`api/scores.ts` is the Vercel function entry point; the reusable server
+implementation is kept in `src/server.ts` so Vercel does not detect it as a
+separate function. The local HTTP server still starts with `npm start`.
 # snake-game-server

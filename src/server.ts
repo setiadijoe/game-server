@@ -41,7 +41,7 @@ class RequestError extends Error {
   }
 }
 
-const FRONTEND_ROOT = path.resolve(__dirname, "../../snake-game");
+const FRONTEND_ROOT = path.resolve(__dirname, "../../../snake-game");
 const MAX_BODY_SIZE = 16 * 1024;
 const CONTENT_TYPES: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -370,17 +370,6 @@ function handler(request: http.IncomingMessage, response: http.ServerResponse): 
     console.error("Failed to initialize score API:", error);
     sendJson(response, 500, { error: "Score API configuration error" });
   }
-}
-
-if (require.main === module) {
-  const port = Number(process.env.PORT || 3000);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error("PORT must be an integer from 1 to 65535");
-  }
-
-  createServer().listen(port, "127.0.0.1", () => {
-    console.log(`Snake game server running at http://localhost:${port}`);
-  });
 }
 
 export default handler;

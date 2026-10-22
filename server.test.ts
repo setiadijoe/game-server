@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { createServer as createHttpServer } from "node:http";
 import * as path from "node:path";
 import { after, before, test } from "node:test";
-import handler, { createServer } from "./server";
+import handler, { createServer } from "./src/server";
 
 const savedScores: Array<{ id: string; name: string; score: number; createdAt: string }> = [];
 const server = createServer({
