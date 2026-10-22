@@ -42,4 +42,11 @@ score record.
 
 Set `PORT` to change the default port. Run `npm test` to compile the TypeScript
 and test the API.
+
+## Deploy to Vercel
+
+Deploy this directory as the Vercel project root. Add `SUPABASE_URL` and
+`SUPABASE_SECRET_KEY` to the Vercel project's environment variables for each
+deployment environment, then redeploy. The `api/[...path].ts` function serves
+the score API and handles browser CORS preflight requests.
 # snake-game-server

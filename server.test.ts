@@ -127,6 +127,20 @@ test("rejects invalid score cursors", async () => {
   assert.equal(response.status, 400);
 });
 
+test("allows browser CORS preflight for score requests", async () => {
+  const response = await fetch(`${baseUrl}/api/scores`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "http://localhost:4173",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type"
+    }
+  });
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.match(response.headers.get("access-control-allow-methods") || "", /POST/);
+});
+
 test("rejects invalid scores and JSON bodies", async () => {
   const response = await fetch(`${baseUrl}/api/scores`, {
     method: "POST",

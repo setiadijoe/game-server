@@ -265,6 +265,15 @@ function createServer(options: CreateServerOptions = {}): http.Server {
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
     if (url.pathname === "/api/scores") {
+      response.setHeader("Access-Control-Allow-Origin", "*");
+      response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      if (request.method === "OPTIONS") {
+        response.writeHead(204);
+        response.end();
+        return;
+      }
+
       if (request.method === "GET") {
         const requestedLimit = url.searchParams.get("limit");
         const limit = requestedLimit === null || requestedLimit === "" ? 3 : Number(requestedLimit);
