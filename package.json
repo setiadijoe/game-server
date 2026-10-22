@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "description": "TypeScript server with Supabase score storage for the Snake game",
-  "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/server.js",

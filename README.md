@@ -47,6 +47,10 @@ and test the API.
 
 Deploy this directory as the Vercel project root. Add `SUPABASE_URL` and
 `SUPABASE_SECRET_KEY` to the Vercel project's environment variables for each
-deployment environment, then redeploy. The `api/[...path].ts` function serves
-the score API and handles browser CORS preflight requests.
+deployment environment, then redeploy. The `api/scores.ts` function serves
+`/api/scores` and handles browser CORS preflight requests.
+
+Leave Vercel's Output Directory unset so it detects the `api/` function. The
+local HTTP server in `server.ts` is for `npm start`, not a Vercel function
+entry point.
 # snake-game-server
