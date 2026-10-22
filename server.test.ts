@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert";
+import { createServer as createHttpServer } from "node:http";
 import * as path from "node:path";
 import { after, before, test } from "node:test";
-import { createServer } from "./server";
+import handler, { createServer } from "./server";
 
 const savedScores: Array<{ id: string; name: string; score: number; createdAt: string }> = [];
 const server = createServer({
@@ -50,6 +51,23 @@ after(async () => {
   await new Promise<void>((resolve, reject) =>
     server.close((error) => error ? reject(error) : resolve())
   );
+});
+
+test("exports a request handler for serverless deployments", async () => {
+  const handlerServer = createHttpServer(handler);
+  await new Promise<void>((resolve) => handlerServer.listen(0, "127.0.0.1", resolve));
+  const address = handlerServer.address();
+  if (!address || typeof address === "string") throw new Error("Handler server failed to start");
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${address.port}/not-found`);
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: "Not found" });
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      handlerServer.close((error) => error ? reject(error) : resolve())
+    );
+  }
 });
 
 test("creates scores and reads them ordered by score", async () => {

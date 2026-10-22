@@ -354,6 +354,24 @@ function createServer(options: CreateServerOptions = {}): http.Server {
   return server;
 }
 
+let vercelServer: http.Server | undefined;
+
+function handler(request: http.IncomingMessage, response: http.ServerResponse): void {
+  const pathname = new URL(request.url || "/", "http://localhost").pathname;
+  if (pathname !== "/api/scores") {
+    sendJson(response, 404, { error: "Not found" });
+    return;
+  }
+
+  try {
+    vercelServer ??= createServer();
+    vercelServer.emit("request", request, response);
+  } catch (error) {
+    console.error("Failed to initialize score API:", error);
+    sendJson(response, 500, { error: "Score API configuration error" });
+  }
+}
+
 if (require.main === module) {
   const port = Number(process.env.PORT || 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -365,4 +383,5 @@ if (require.main === module) {
   });
 }
 
+export default handler;
 export { createServer };
