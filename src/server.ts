@@ -85,8 +85,8 @@ function decodeCursor(value: string): ScoreCursor {
   }
 }
 
-console.log("SUPABASE_URL:", process.env.SUPABASE_URL ? "ADA" : "TIDAK ADA");
-console.log("SUPABASE_SECRET_KEY:", process.env.SUPABASE_SECRET_KEY ? "ADA" : "TIDAK ADA");
+console.log("SUPABASE_URL:", process.env.NEXT_SUPABASE_URL ? "ADA" : "TIDAK ADA");
+console.log("SUPABASE_SECRET_KEY:", process.env.NEXT_SUPABASE_SECRET_KEY ? "ADA" : "TIDAK ADA");
 console.log("SUPABASE_SERVICE_ROLE_KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "ADA" : "TIDAK ADA");
 
 interface SupabaseConfig {
