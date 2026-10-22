@@ -5,6 +5,7 @@ import { after, before, test } from "node:test";
 import handler, { createServer } from "./src/server";
 
 const savedScores: Array<{ id: string; name: string; score: number; createdAt: string }> = [];
+const gameOrigin = "https://snake-game-teal-two.vercel.app";
 const server = createServer({
   frontendRoot: path.resolve(__dirname, "../../snake-game"),
   scoreStore: {
@@ -73,7 +74,7 @@ test("exports a request handler for serverless deployments", async () => {
 test("creates scores and reads them ordered by score", async () => {
   const firstResponse = await fetch(`${baseUrl}/api/scores`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
     body: JSON.stringify({ name: "Player One", score: 20 })
   });
   const first = await firstResponse.json() as { name: string; score: number };
@@ -83,7 +84,7 @@ test("creates scores and reads them ordered by score", async () => {
 
   const secondResponse = await fetch(`${baseUrl}/api/scores`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
     body: JSON.stringify({ name: "Player Two", score: 50 })
   });
   assert.equal(secondResponse.status, 201);
@@ -115,7 +116,7 @@ test("paginates scores with a default page size of three", async () => {
   for (const score of [90, 80, 70, 60]) {
     const response = await fetch(`${baseUrl}/api/scores`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: gameOrigin },
       body: JSON.stringify({ name: `Player ${score}`, score })
     });
     assert.equal(response.status, 201);
@@ -145,24 +146,33 @@ test("rejects invalid score cursors", async () => {
   assert.equal(response.status, 400);
 });
 
-test("allows browser CORS preflight for score requests", async () => {
+test("allows browser CORS preflight from the game origin only", async () => {
   const response = await fetch(`${baseUrl}/api/scores`, {
     method: "OPTIONS",
     headers: {
-      Origin: "http://localhost:4173",
+      Origin: gameOrigin,
       "Access-Control-Request-Method": "POST",
       "Access-Control-Request-Headers": "content-type"
     }
   });
   assert.equal(response.status, 204);
-  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(response.headers.get("access-control-allow-origin"), gameOrigin);
   assert.match(response.headers.get("access-control-allow-methods") || "", /POST/);
+
+  const rejectedResponse = await fetch(`${baseUrl}/api/scores`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "https://example.com",
+      "Access-Control-Request-Method": "POST"
+    }
+  });
+  assert.equal(rejectedResponse.status, 403);
 });
 
 test("rejects invalid scores and JSON bodies", async () => {
   const response = await fetch(`${baseUrl}/api/scores`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
     body: JSON.stringify({ name: "Player", score: -1 })
   });
   assert.equal(response.status, 400);
@@ -170,10 +180,24 @@ test("rejects invalid scores and JSON bodies", async () => {
 
   const nullBodyResponse = await fetch(`${baseUrl}/api/scores`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
     body: "null"
   });
   assert.equal(nullBodyResponse.status, 400);
+});
+
+test("rejects score submissions from other or missing origins", async () => {
+  for (const origin of ["https://example.com", undefined]) {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (origin) headers.Origin = origin;
+    const response = await fetch(`${baseUrl}/api/scores`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Player", score: 10 })
+    });
+    assert.equal(response.status, 403);
+    assert.deepEqual(await response.json(), { error: "Origin not allowed" });
+  }
 });
 
 test("serves the existing game frontend", async () => {

@@ -37,8 +37,12 @@ HTTPS.
   `{"name":"Player 1","score":120}`.
 
 Names must contain 1–30 characters after trimming, and scores must be
-non-negative integers. The server responds with `201 Created` and the saved
-score record.
+non-negative integers. Score submissions and browser CORS requests are accepted
+only from `https://snake-game-teal-two.vercel.app`. The server responds with
+`201 Created` and the saved score record.
+
+The origin check limits browser-based cross-origin submissions; it is not
+authentication, because non-browser clients can forge the `Origin` header.
 
 Set `PORT` to change the default port. Run `npm test` to compile the TypeScript
 and test the API.

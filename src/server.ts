@@ -42,6 +42,7 @@ class RequestError extends Error {
 }
 
 const FRONTEND_ROOT = path.resolve(__dirname, "../../../snake-game");
+const ALLOWED_GAME_ORIGIN = "https://snake-game-teal-two.vercel.app";
 const MAX_BODY_SIZE = 16 * 1024;
 const CONTENT_TYPES: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -84,10 +85,6 @@ function decodeCursor(value: string): ScoreCursor {
     throw new RequestError("Cursor is invalid", 400);
   }
 }
-
-console.log("SUPABASE_URL:", process.env.NEXT_SUPABASE_URL ? "ADA" : "TIDAK ADA");
-console.log("SUPABASE_SECRET_KEY:", process.env.NEXT_SUPABASE_SECRET_KEY ? "ADA" : "TIDAK ADA");
-console.log("SUPABASE_SERVICE_ROLE_KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "ADA" : "TIDAK ADA");
 
 interface SupabaseConfig {
   url: string;
@@ -269,10 +266,18 @@ function createServer(options: CreateServerOptions = {}): http.Server {
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
     if (url.pathname === "/api/scores") {
-      response.setHeader("Access-Control-Allow-Origin", "*");
-      response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      const isAllowedOrigin = request.headers.origin === ALLOWED_GAME_ORIGIN;
+      if (isAllowedOrigin) {
+        response.setHeader("Access-Control-Allow-Origin", ALLOWED_GAME_ORIGIN);
+        response.setHeader("Vary", "Origin");
+      }
       if (request.method === "OPTIONS") {
+        if (!isAllowedOrigin) {
+          sendJson(response, 403, { error: "Origin not allowed" });
+          return;
+        }
+        response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        response.setHeader("Access-Control-Allow-Headers", "Content-Type");
         response.writeHead(204);
         response.end();
         return;
@@ -310,6 +315,10 @@ function createServer(options: CreateServerOptions = {}): http.Server {
       }
 
       if (request.method === "POST") {
+        if (!isAllowedOrigin) {
+          sendJson(response, 403, { error: "Origin not allowed" });
+          return;
+        }
         try {
           const body = await readRequestBody(request);
           if (!isRecord(body)) {
