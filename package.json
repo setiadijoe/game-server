@@ -1,0 +1,23 @@
+{
+  "name": "snake-game-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TypeScript server with Supabase score storage for the Snake game",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/server.js",
+    "test": "npm run build && node --test dist/server.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "ulid": "^3.0.1"
+  }
+}

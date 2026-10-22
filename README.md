@@ -1,0 +1,45 @@
+# Snake Game Server
+
+This server hosts the game in `../snake-game` and stores completed game scores
+in the Supabase `scores` table through the Supabase REST API. The server is
+written in TypeScript.
+
+## Run
+
+```sh
+cd snake-game-server
+npm install
+cp .env.example .env
+# Set SUPABASE_URL and SUPABASE_SECRET_KEY from your Supabase project
+npm start
+```
+
+Open [http://localhost:3000](http://localhost:3000). When a game ends, enter a
+name to save that run's score. The high-score list is loaded from the server.
+Keep `SUPABASE_SECRET_KEY` private in `.env`; it grants privileged server-side
+access and must never be put in the browser. The server also accepts the legacy
+`SUPABASE_SERVICE_ROLE_KEY` variable.
+
+The `scores` table should contain `id` (varchar), `name` (varchar), `score`
+(int4), and `created_at` (timestamp with time zone, default `now()`). The
+server generates `id` as a ULID and leaves `created_at` to the database
+default. Use the project URL shown in Supabase for `SUPABASE_URL`; requests use
+HTTPS.
+
+## API
+
+- `GET /api/scores` returns the top 3 scores by default and a `nextCursor`.
+  Pass a non-empty cursor as `?cursor=...` to get the next page; an empty
+  cursor starts from the first page. `nextCursor` is an empty string when there
+  are no more results. Use `?limit=25` to request up to 100 scores per page;
+  an omitted or empty limit defaults to 3.
+- `POST /api/scores` creates a score. Send JSON such as
+  `{"name":"Player 1","score":120}`.
+
+Names must contain 1–30 characters after trimming, and scores must be
+non-negative integers. The server responds with `201 Created` and the saved
+score record.
+
+Set `PORT` to change the default port. Run `npm test` to compile the TypeScript
+and test the API.
+# snake-game-server
