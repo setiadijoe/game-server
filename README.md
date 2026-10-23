@@ -1,4 +1,4 @@
-# Snake Game Server
+# Game Server
 
 This server hosts the game in `../snake-game` and stores completed game scores
 in the Supabase `scores` table through the Supabase REST API. The server is
@@ -7,7 +7,7 @@ written in TypeScript.
 ## Run
 
 ```sh
-cd snake-game-server
+cd game-server
 npm install
 cp .env.example .env
 # Set SUPABASE_URL and SUPABASE_SECRET_KEY from your Supabase project
@@ -58,4 +58,4 @@ Leave Vercel's Output Directory unset so it detects the `api/` function.
 `api/scores.ts` is the Vercel function entry point; the reusable server
 implementation is kept in `src/server.ts` so Vercel does not detect it as a
 separate function. The local HTTP server still starts with `npm start`.
-# snake-game-server
+# game-server
