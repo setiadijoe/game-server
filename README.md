@@ -34,6 +34,9 @@ the trigram search index and cursor-ordering index.
 
 ## API
 
+The OpenAPI/Swagger specification is in [`openapi.yaml`](./openapi.yaml). Open
+it with Swagger Editor or Swagger UI to browse and try the endpoints.
+
 - `GET /api/scores` returns the top 3 scores by default and a `nextCursor`.
   Pass a non-empty cursor as `?cursor=...` to get the next page; an empty
   cursor starts from the first page. `nextCursor` is an empty string when there

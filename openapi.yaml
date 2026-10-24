@@ -1,0 +1,395 @@
+openapi: 3.1.0
+info:
+  title: Game Server API
+  version: 1.0.0
+  description: |
+    API for score submissions and title-game catalog management.
+    The local server is available at http://localhost:3000.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+tags:
+  - name: Scores
+    description: High-score listing and submission
+  - name: Title games
+    description: Game-name catalog
+paths:
+  /api/scores:
+    get:
+      tags: [Scores]
+      summary: List high scores
+      description: Returns scores ordered by score descending, then ID ascending.
+      parameters:
+        - name: limit
+          in: query
+          description: Number of scores per page. An omitted or empty value defaults to 3.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 3
+        - name: cursor
+          in: query
+          description: Opaque nextCursor from the previous page; omit or leave empty for the first page.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of scores.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScorePage"
+              example:
+                scores:
+                  - id: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+                    name: Player One
+                    score: 120
+                    createdAt: "2026-10-24T13:00:00.000Z"
+                nextCursor: ""
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          description: Could not read scores.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Unable to read scores
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    post:
+      tags: [Scores]
+      summary: Create a score
+      description: |
+        Creates a score and generates its ULID on the server. Requests must
+        include the allowed Origin header. This origin check is not
+        authentication; non-browser clients can forge the header.
+      parameters:
+        - $ref: "#/components/parameters/AllowedOrigin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScoreRequest"
+            example:
+              name: Player One
+              score: 120
+      responses:
+        "201":
+          description: Score created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Score"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/OriginNotAllowed"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "500":
+          description: Could not save score.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Unable to save score
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    options:
+      tags: [Scores]
+      summary: CORS preflight for scores
+      parameters:
+        - $ref: "#/components/parameters/AllowedOrigin"
+        - name: Access-Control-Request-Method
+          in: header
+          required: false
+          schema:
+            type: string
+            enum: [GET, POST]
+        - name: Access-Control-Request-Headers
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Preflight accepted.
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+                example: GET, POST, OPTIONS
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+                example: Content-Type
+        "403":
+          $ref: "#/components/responses/OriginNotAllowed"
+  /api/title-games:
+    get:
+      tags: [Title games]
+      summary: List title games
+      description: Returns title games ordered by creation time newest first, then ID ascending.
+      parameters:
+        - name: search
+          in: query
+          description: Case-insensitive substring search within game_name; after trimming, at most 100 characters.
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Number of games per page. An omitted or empty value defaults to 25.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: cursor
+          in: query
+          description: Opaque nextCursor from the previous page; omit or leave empty for the first page.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of title games.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TitleGamePage"
+              example:
+                games:
+                  - id: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+                    created_at: "2026-10-24T13:00:00.000Z"
+                    game_name: Snake Game
+                nextCursor: ""
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          description: Could not read title games.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Unable to read title games
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    post:
+      tags: [Title games]
+      summary: Create a title game
+      description: |
+        Stores a game name, generating a ULID and timestamp on the server.
+        Requests must include the allowed Origin header. This origin check is
+        not authentication; non-browser clients can forge the header.
+      parameters:
+        - $ref: "#/components/parameters/AllowedOrigin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTitleGameRequest"
+            example:
+              game_name: Snake Game
+      responses:
+        "201":
+          description: Title game created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TitleGame"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/OriginNotAllowed"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "500":
+          description: Could not save title game.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: Unable to save title game
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    options:
+      tags: [Title games]
+      summary: CORS preflight for title games
+      parameters:
+        - $ref: "#/components/parameters/AllowedOrigin"
+        - name: Access-Control-Request-Method
+          in: header
+          required: false
+          schema:
+            type: string
+            enum: [GET, POST]
+        - name: Access-Control-Request-Headers
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Preflight accepted.
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+                example: GET, POST, OPTIONS
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+                example: Content-Type
+        "403":
+          $ref: "#/components/responses/OriginNotAllowed"
+components:
+  parameters:
+    AllowedOrigin:
+      name: Origin
+      in: header
+      required: true
+      description: Must equal the configured game origin.
+      schema:
+        type: string
+        format: uri
+        enum:
+          - https://snake-game-teal-two.vercel.app
+  responses:
+    BadRequest:
+      description: Invalid request data, query parameter, cursor, or JSON body.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            invalidCursor:
+              value:
+                error: Cursor is invalid
+            invalidBody:
+              value:
+                error: Request body must be valid JSON
+            invalidLimit:
+              value:
+                error: Limit must be an integer from 1 to 100
+    OriginNotAllowed:
+      description: Origin header is missing or is not the configured game origin.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Origin not allowed
+    BodyTooLarge:
+      description: Request body exceeds 16 KiB.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Request body is too large
+    MethodNotAllowed:
+      description: HTTP method is not supported for this path.
+      headers:
+        Allow:
+          schema:
+            type: string
+  schemas:
+    Score:
+      type: object
+      required: [id, name, score, createdAt]
+      properties:
+        id:
+          type: string
+          description: Server-generated ULID.
+          pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+        score:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+    ScorePage:
+      type: object
+      required: [scores, nextCursor]
+      properties:
+        scores:
+          type: array
+          items:
+            $ref: "#/components/schemas/Score"
+        nextCursor:
+          type: string
+          description: Empty string when there are no more pages; otherwise pass it as cursor.
+    CreateScoreRequest:
+      type: object
+      required: [name, score]
+      additionalProperties: true
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+          description: Whitespace is trimmed before validation and storage.
+        score:
+          type: integer
+          minimum: 0
+    TitleGame:
+      type: object
+      required: [id, created_at, game_name]
+      properties:
+        id:
+          type: string
+          description: Server-generated ULID.
+          pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+        created_at:
+          type: string
+          format: date-time
+        game_name:
+          type: string
+    TitleGamePage:
+      type: object
+      required: [games, nextCursor]
+      properties:
+        games:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleGame"
+        nextCursor:
+          type: string
+          description: Empty string when there are no more pages; otherwise pass it as cursor.
+    CreateTitleGameRequest:
+      type: object
+      required: [game_name]
+      additionalProperties: true
+      properties:
+        game_name:
+          type: string
+          minLength: 1
+          description: Whitespace is trimmed; the value must not be empty after trimming.
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
