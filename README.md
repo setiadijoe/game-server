@@ -34,6 +34,9 @@ and `created_at` (timestamp with time zone). The server generates `id` as a
 ULID and sets `created_at` when inserting a game name.
 Run the DDL in `sql/title-games-indexes.sql` in the Supabase SQL Editor to add
 the trigram search index and cursor-ordering index.
+If `GET /api/title-games` returns a permission error, run
+`sql/grant-title-games-select.sql` in the Supabase SQL Editor to allow the
+server's `service_role` to read title games.
 
 ## API
 
