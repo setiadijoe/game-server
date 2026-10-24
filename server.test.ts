@@ -5,6 +5,7 @@ import { after, before, test } from "node:test";
 import handler, { createServer } from "./src/server";
 
 const savedScores: Array<{ id: string; name: string; score: number; createdAt: string }> = [];
+const savedTitleGames: Array<{ id: string; created_at: string; game_name: string }> = [];
 const gameOrigin = "https://snake-game-teal-two.vercel.app";
 const server = createServer({
   frontendRoot: path.resolve(__dirname, "../../snake-game"),
@@ -35,6 +36,17 @@ const server = createServer({
         createdAt: new Date().toISOString()
       };
       savedScores.push(record);
+      return record;
+    }
+  },
+  titleGameStore: {
+    async create(gameName) {
+      const record = {
+        id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        created_at: new Date().toISOString(),
+        game_name: gameName
+      };
+      savedTitleGames.push(record);
       return record;
     }
   }
@@ -198,6 +210,41 @@ test("rejects score submissions from other or missing origins", async () => {
     assert.equal(response.status, 403);
     assert.deepEqual(await response.json(), { error: "Origin not allowed" });
   }
+});
+
+test("creates title games with a ULID and the submitted game name", async () => {
+  const response = await fetch(`${baseUrl}/api/title-games`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
+    body: JSON.stringify({ game_name: "  Space Quest  ", id: "client-controlled" })
+  });
+
+  assert.equal(response.status, 201);
+  const titleGame = await response.json() as {
+    id: string;
+    created_at: string;
+    game_name: string;
+  };
+  assert.match(titleGame.id, /^[0-9A-HJKMNP-TV-Z]{26}$/);
+  assert.ok(!Number.isNaN(Date.parse(titleGame.created_at)));
+  assert.equal(titleGame.game_name, "Space Quest");
+  assert.deepEqual(savedTitleGames.at(-1), titleGame);
+});
+
+test("rejects empty title game names and disallowed origins", async () => {
+  const emptyNameResponse = await fetch(`${baseUrl}/api/title-games`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
+    body: JSON.stringify({ game_name: "   " })
+  });
+  assert.equal(emptyNameResponse.status, 400);
+
+  const rejectedOriginResponse = await fetch(`${baseUrl}/api/title-games`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: "https://example.com" },
+    body: JSON.stringify({ game_name: "Space Quest" })
+  });
+  assert.equal(rejectedOriginResponse.status, 403);
 });
 
 test("serves the existing game frontend", async () => {

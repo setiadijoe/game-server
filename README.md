@@ -26,6 +26,10 @@ server generates `id` as a ULID and leaves `created_at` to the database
 default. Use the project URL shown in Supabase for `SUPABASE_URL`; requests use
 HTTPS.
 
+The `title_games` table should contain `id` (varchar), `game_name` (varchar),
+and `created_at` (timestamp with time zone). The server generates `id` as a
+ULID and sets `created_at` when inserting a game name.
+
 ## API
 
 - `GET /api/scores` returns the top 3 scores by default and a `nextCursor`.
@@ -35,11 +39,15 @@ HTTPS.
   an omitted or empty limit defaults to 3.
 - `POST /api/scores` creates a score. Send JSON such as
   `{"name":"Player 1","score":120}`.
+- `POST /api/title-games` stores a game name. Send JSON such as
+  `{"game_name":"Space Quest"}`. The server trims the name and returns the
+  inserted record with its generated ULID and timestamp.
 
-Names must contain 1–30 characters after trimming, and scores must be
-non-negative integers. Score submissions and browser CORS requests are accepted
-only from `https://snake-game-teal-two.vercel.app`. The server responds with
-`201 Created` and the saved score record.
+Score player names must contain 1–30 characters after trimming, and scores must
+be non-negative integers. Game names must contain at least one non-whitespace
+character. Score and title-game submissions and browser CORS requests are
+accepted only from `https://snake-game-teal-two.vercel.app`. The server responds
+with `201 Created` and the saved record.
 
 The origin check limits browser-based cross-origin submissions; it is not
 authentication, because non-browser clients can forge the `Origin` header.
@@ -51,11 +59,11 @@ and test the API.
 
 Deploy this directory as the Vercel project root. Add `SUPABASE_URL` and
 `SUPABASE_SECRET_KEY` to the Vercel project's environment variables for each
-deployment environment, then redeploy. The `api/scores.ts` function serves
-`/api/scores` and handles browser CORS preflight requests.
+deployment environment, then redeploy. The `api/scores.ts` and `api/title-games.ts` functions serve
+their respective endpoints and handle browser CORS preflight requests.
 
 Leave Vercel's Output Directory unset so it detects the `api/` function.
-`api/scores.ts` is the Vercel function entry point; the reusable server
+The API files are Vercel function entry points; the reusable server
 implementation is kept in `src/server.ts` so Vercel does not detect it as a
 separate function. The local HTTP server still starts with `npm start`.
 # game-server
