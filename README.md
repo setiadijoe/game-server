@@ -22,12 +22,12 @@ access and must never be put in the browser. The server also accepts the legacy
 
 The `scores` table should contain `id` (varchar), `name` (varchar), `score`
 (int4), `created_at` (timestamp with time zone, default `now()`), and the
-nullable `title_game_id` (varchar). The server generates `id` as a ULID and
+required `title_game_id` (varchar). The server generates `id` as a ULID and
 leaves `created_at` to the database default. Run
 `sql/backfill-scores-title-game-id.sql` once to add `title_game_id` and assign
-the existing score rows to the Snake Game ULID. The column has no default, so
-future score inserts can leave it NULL. Use the project URL shown in Supabase
-for `SUPABASE_URL`; requests use HTTPS.
+the existing score rows to the Snake Game ULID, then enforce `NOT NULL`. Future
+score submissions must provide a valid game ID. Use the project URL shown in
+Supabase for `SUPABASE_URL`; requests use HTTPS.
 
 The `title_games` table should contain `id` (varchar), `game_name` (varchar),
 and `created_at` (timestamp with time zone). The server generates `id` as a
@@ -46,7 +46,10 @@ it with Swagger Editor or Swagger UI to browse and try the endpoints.
   are no more results. Use `?limit=25` to request up to 100 scores per page;
   an omitted or empty limit defaults to 3.
 - `POST /api/scores` creates a score. Send JSON such as
-  `{"name":"Player 1","score":120}`.
+  `{"name":"Player 1","score":120,"game_id":"01ARZ3NDEKTSV4RRFFQ69G5FAV"}`.
+  The game ID must identify an existing title game; otherwise the API returns
+  `400` with `{"error":"game not invalid"}`. The game UI looks up “Snake Game”
+  and sends its ID with the score.
 - `POST /api/title-games` stores a game name. Send JSON such as
   `{"game_name":"Space Quest"}`. The server trims the name and returns the
   inserted record with its generated ULID and timestamp.

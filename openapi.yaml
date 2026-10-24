@@ -79,6 +79,7 @@ paths:
             example:
               name: Player One
               score: 120
+              game_id: 01ARZ3NDEKTSV4RRFFQ69G5FAV
       responses:
         "201":
           description: Score created.
@@ -314,7 +315,7 @@ components:
   schemas:
     Score:
       type: object
-      required: [id, name, score, createdAt]
+      required: [id, name, score, createdAt, title_game_id]
       properties:
         id:
           type: string
@@ -330,6 +331,9 @@ components:
         createdAt:
           type: string
           format: date-time
+        title_game_id:
+          type: string
+          description: ID of the associated title game.
     ScorePage:
       type: object
       required: [scores, nextCursor]
@@ -343,7 +347,7 @@ components:
           description: Empty string when there are no more pages; otherwise pass it as cursor.
     CreateScoreRequest:
       type: object
-      required: [name, score]
+      required: [name, score, game_id]
       additionalProperties: true
       properties:
         name:
@@ -354,6 +358,10 @@ components:
         score:
           type: integer
           minimum: 0
+        game_id:
+          type: string
+          pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+          description: ULID of an existing title game.
     TitleGame:
       type: object
       required: [id, created_at, game_name]

@@ -3,9 +3,18 @@ import { createServer as createHttpServer } from "node:http";
 import * as path from "node:path";
 import { after, before, test } from "node:test";
 import handler, { createServer } from "./src/server";
+import { InvalidGameError } from "./src/scores";
 
-const savedScores: Array<{ id: string; name: string; score: number; createdAt: string }> = [];
+const snakeGameId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+const savedScores: Array<{
+  id: string;
+  name: string;
+  score: number;
+  createdAt: string;
+  title_game_id: string;
+}> = [];
 const savedTitleGames: Array<{ id: string; created_at: string; game_name: string }> = [
+  { id: snakeGameId, created_at: "2026-01-04T00:00:00.000Z", game_name: "Snake Game" },
   { id: "title-1", created_at: "2026-01-03T00:00:00.000Z", game_name: "Arcade Quest" },
   { id: "title-2", created_at: "2026-01-02T00:00:00.000Z", game_name: "Space Quest" },
   { id: "title-3", created_at: "2026-01-01T00:00:00.000Z", game_name: "Arcade Racer" }
@@ -32,12 +41,16 @@ const server = createServer({
           : ""
       };
     },
-    async create(name, score) {
+    async create(name, score, gameId) {
+      if (!savedTitleGames.some(({ id }) => id === gameId)) {
+        throw new InvalidGameError("game not invalid");
+      }
       const record = {
         id: `test-${savedScores.length + 1}`,
         name,
         score,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        title_game_id: gameId
       };
       savedScores.push(record);
       return record;
@@ -114,17 +127,18 @@ test("creates scores and reads them ordered by score", async () => {
   const firstResponse = await fetch(`${baseUrl}/api/scores`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: gameOrigin },
-    body: JSON.stringify({ name: "Player One", score: 20 })
+    body: JSON.stringify({ name: "Player One", score: 20, game_id: snakeGameId })
   });
-  const first = await firstResponse.json() as { name: string; score: number };
+  const first = await firstResponse.json() as { name: string; score: number; title_game_id: string };
   assert.equal(firstResponse.status, 201);
   assert.equal(first.name, "Player One");
   assert.equal(first.score, 20);
+  assert.equal(first.title_game_id, snakeGameId);
 
   const secondResponse = await fetch(`${baseUrl}/api/scores`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: gameOrigin },
-    body: JSON.stringify({ name: "Player Two", score: 50 })
+    body: JSON.stringify({ name: "Player Two", score: 50, game_id: snakeGameId })
   });
   assert.equal(secondResponse.status, 201);
 
@@ -156,7 +170,7 @@ test("paginates scores with a default page size of three", async () => {
     const response = await fetch(`${baseUrl}/api/scores`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Origin: gameOrigin },
-      body: JSON.stringify({ name: `Player ${score}`, score })
+      body: JSON.stringify({ name: `Player ${score}`, score, game_id: snakeGameId })
     });
     assert.equal(response.status, 201);
   }
@@ -212,7 +226,7 @@ test("rejects invalid scores and JSON bodies", async () => {
   const response = await fetch(`${baseUrl}/api/scores`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: gameOrigin },
-    body: JSON.stringify({ name: "Player", score: -1 })
+    body: JSON.stringify({ name: "Player", score: -1, game_id: snakeGameId })
   });
   assert.equal(response.status, 400);
   assert.match((await response.json() as { error: string }).error, /non-negative integer/);
@@ -225,6 +239,28 @@ test("rejects invalid scores and JSON bodies", async () => {
   assert.equal(nullBodyResponse.status, 400);
 });
 
+test("requires a valid existing game ID when creating a score", async () => {
+  const missingGameId = await fetch(`${baseUrl}/api/scores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
+    body: JSON.stringify({ name: "Player", score: 10 })
+  });
+  assert.equal(missingGameId.status, 400);
+  assert.deepEqual(await missingGameId.json(), { error: "game not invalid" });
+
+  const unknownGameId = await fetch(`${baseUrl}/api/scores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
+    body: JSON.stringify({
+      name: "Player",
+      score: 10,
+      game_id: "01ARZ3NDEKTSV4RRFFQ69G5FAA"
+    })
+  });
+  assert.equal(unknownGameId.status, 400);
+  assert.deepEqual(await unknownGameId.json(), { error: "game not invalid" });
+});
+
 test("rejects score submissions from other or missing origins", async () => {
   for (const origin of ["https://example.com", undefined]) {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -232,7 +268,7 @@ test("rejects score submissions from other or missing origins", async () => {
     const response = await fetch(`${baseUrl}/api/scores`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ name: "Player", score: 10 })
+      body: JSON.stringify({ name: "Player", score: 10, game_id: snakeGameId })
     });
     assert.equal(response.status, 403);
     assert.deepEqual(await response.json(), { error: "Origin not allowed" });

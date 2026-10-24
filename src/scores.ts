@@ -47,8 +47,11 @@ function isSupabaseScoreRow(value: unknown): value is SupabaseScoreRow {
     typeof value.score === "number" &&
     Number.isSafeInteger(value.score) &&
     typeof value.created_at === "string" &&
+    typeof value.title_game_id === "string" &&
     !Number.isNaN(Date.parse(value.created_at));
 }
+
+export class InvalidGameError extends Error {}
 
 export function createSupabaseScoreStore(config: SupabaseConfig): ScoreStore {
   const projectUrl = new URL(config.url);
@@ -83,7 +86,7 @@ export function createSupabaseScoreStore(config: SupabaseConfig): ScoreStore {
   return {
     async list(limit, cursor) {
       const url = new URL("/rest/v1/scores", projectUrl);
-      url.searchParams.set("select", "id,name,score,created_at");
+      url.searchParams.set("select", "id,name,score,created_at,title_game_id");
       url.searchParams.set("order", "score.desc,id.asc");
       url.searchParams.set("limit", String(limit + 1));
       if (cursor) {
@@ -95,11 +98,12 @@ export function createSupabaseScoreStore(config: SupabaseConfig): ScoreStore {
       const rows = await readRows(await request(url));
       const hasMore = rows.length > limit;
       const pageRows = rows.slice(0, limit);
-      const scores = pageRows.map(({ id, name, score, created_at }) => ({
+      const scores = pageRows.map(({ id, name, score, created_at, title_game_id }) => ({
         id,
         name,
         score,
-        createdAt: new Date(created_at).toISOString()
+        createdAt: new Date(created_at).toISOString(),
+        title_game_id
       }));
       const last = pageRows.at(-1);
       return {
@@ -107,16 +111,31 @@ export function createSupabaseScoreStore(config: SupabaseConfig): ScoreStore {
         nextCursor: hasMore && last ? encodeCursor({ score: last.score, id: last.id }) : ""
       };
     },
-    async create(name, score) {
+    async create(name, score, gameId) {
+      const gameUrl = new URL("/rest/v1/title_games", projectUrl);
+      gameUrl.searchParams.set("select", "id");
+      gameUrl.searchParams.set("id", `eq.${gameId}`);
+      gameUrl.searchParams.set("limit", "1");
+      const gameResponse = await request(gameUrl);
+      const gameRows: unknown = await gameResponse.json();
+      if (
+        !Array.isArray(gameRows) ||
+        gameRows.length !== 1 ||
+        !isRecord(gameRows[0]) ||
+        gameRows[0].id !== gameId
+      ) {
+        throw new InvalidGameError("game not invalid");
+      }
+
       const url = new URL("/rest/v1/scores", projectUrl);
-      url.searchParams.set("select", "id,name,score,created_at");
+      url.searchParams.set("select", "id,name,score,created_at,title_game_id");
       const rows = await readRows(await request(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Prefer: "return=representation"
         },
-        body: JSON.stringify({ id: ulid(), name, score })
+        body: JSON.stringify({ id: ulid(), name, score, title_game_id: gameId })
       }));
       const [row] = rows;
       if (!row) throw new Error("Score insert did not return a row");
@@ -124,7 +143,8 @@ export function createSupabaseScoreStore(config: SupabaseConfig): ScoreStore {
         id: row.id,
         name: row.name,
         score: row.score,
-        createdAt: new Date(row.created_at).toISOString()
+        createdAt: new Date(row.created_at).toISOString(),
+        title_game_id: row.title_game_id
       };
     }
   };
@@ -209,11 +229,20 @@ export async function handleScoresRequest(
         return;
       }
 
-      const score: ScoreRecord = await scoreStore.create(name, body.score);
+      if (typeof body.game_id !== "string" || !/^[0-9A-HJKMNP-TV-Z]{26}$/.test(body.game_id)) {
+        sendJson(response, 400, { error: "game not invalid" });
+        return;
+      }
+
+      const score: ScoreRecord = await scoreStore.create(name, body.score, body.game_id);
       sendJson(response, 201, score);
     } catch (error) {
       if (error instanceof RequestError) {
         sendJson(response, error.statusCode, { error: error.message });
+        return;
+      }
+      if (error instanceof InvalidGameError) {
+        sendJson(response, 400, { error: error.message });
         return;
       }
       console.error("Failed to save score:", error);

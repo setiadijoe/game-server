@@ -3,11 +3,12 @@ export interface ScoreRecord {
   name: string;
   score: number;
   createdAt: string;
+  title_game_id: string;
 }
 
 export interface ScoreStore {
   list(limit: number, cursor?: ScoreCursor): Promise<ScorePage>;
-  create(name: string, score: number): Promise<ScoreRecord>;
+  create(name: string, score: number, gameId: string): Promise<ScoreRecord>;
   close?(): Promise<void>;
 }
 
@@ -58,4 +59,5 @@ export interface SupabaseScoreRow {
   name: string;
   score: number;
   created_at: string;
+  title_game_id: string;
 }
