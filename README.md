@@ -29,6 +29,8 @@ HTTPS.
 The `title_games` table should contain `id` (varchar), `game_name` (varchar),
 and `created_at` (timestamp with time zone). The server generates `id` as a
 ULID and sets `created_at` when inserting a game name.
+Run the DDL in `sql/title-games-indexes.sql` in the Supabase SQL Editor to add
+the trigram search index and cursor-ordering index.
 
 ## API
 
@@ -42,6 +44,10 @@ ULID and sets `created_at` when inserting a game name.
 - `POST /api/title-games` stores a game name. Send JSON such as
   `{"game_name":"Space Quest"}`. The server trims the name and returns the
   inserted record with its generated ULID and timestamp.
+- `GET /api/title-games` lists title games by newest first. It returns `games`
+  and a `nextCursor`; pass a non-empty cursor as `?cursor=...` for the next
+  page. Use `?search=space` for case-insensitive substring search and
+  `?limit=25` for page size (defaults to 25; maximum 100).
 
 Score player names must contain 1–30 characters after trimming, and scores must
 be non-negative integers. Game names must contain at least one non-whitespace

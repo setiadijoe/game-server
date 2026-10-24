@@ -18,7 +18,18 @@ export interface TitleGameRecord {
 }
 
 export interface TitleGameStore {
+  list(limit: number, search?: string, cursor?: TitleGameCursor): Promise<TitleGamePage>;
   create(gameName: string): Promise<TitleGameRecord>;
+}
+
+export interface TitleGameCursor {
+  created_at: string;
+  id: string;
+}
+
+export interface TitleGamePage {
+  games: TitleGameRecord[];
+  nextCursor: string;
 }
 
 export interface ScoreCursor {

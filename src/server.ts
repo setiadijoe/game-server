@@ -89,7 +89,7 @@ function createServer(options: CreateServerOptions = {}): http.Server {
       return;
     }
     if (url.pathname === "/api/title-games") {
-      await handleTitleGamesRequest(request, response, titleGameStore);
+      await handleTitleGamesRequest(request, response, url, titleGameStore);
       return;
     }
 

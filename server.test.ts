@@ -5,7 +5,11 @@ import { after, before, test } from "node:test";
 import handler, { createServer } from "./src/server";
 
 const savedScores: Array<{ id: string; name: string; score: number; createdAt: string }> = [];
-const savedTitleGames: Array<{ id: string; created_at: string; game_name: string }> = [];
+const savedTitleGames: Array<{ id: string; created_at: string; game_name: string }> = [
+  { id: "title-1", created_at: "2026-01-03T00:00:00.000Z", game_name: "Arcade Quest" },
+  { id: "title-2", created_at: "2026-01-02T00:00:00.000Z", game_name: "Space Quest" },
+  { id: "title-3", created_at: "2026-01-01T00:00:00.000Z", game_name: "Arcade Racer" }
+];
 const gameOrigin = "https://snake-game-teal-two.vercel.app";
 const server = createServer({
   frontendRoot: path.resolve(__dirname, "../../snake-game"),
@@ -40,6 +44,29 @@ const server = createServer({
     }
   },
   titleGameStore: {
+    async list(limit, search, cursor) {
+      const matching = savedTitleGames
+        .filter((game) => !search || game.game_name.toLowerCase().includes(search.toLowerCase()))
+        .sort((left, right) =>
+          right.created_at.localeCompare(left.created_at) || left.id.localeCompare(right.id)
+        )
+        .filter((game) =>
+          !cursor ||
+          game.created_at < cursor.created_at ||
+          (game.created_at === cursor.created_at && game.id > cursor.id)
+        );
+      const games = matching.slice(0, limit);
+      const last = games.at(-1);
+      return {
+        games,
+        nextCursor: matching.length > limit && last
+          ? Buffer.from(JSON.stringify({
+            created_at: last.created_at,
+            id: last.id
+          })).toString("base64url")
+          : ""
+      };
+    },
     async create(gameName) {
       const record = {
         id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
@@ -229,6 +256,51 @@ test("creates title games with a ULID and the submitted game name", async () => 
   assert.ok(!Number.isNaN(Date.parse(titleGame.created_at)));
   assert.equal(titleGame.game_name, "Space Quest");
   assert.deepEqual(savedTitleGames.at(-1), titleGame);
+});
+
+test("lists title games with case-insensitive search and cursor pagination", async () => {
+  const firstResponse = await fetch(`${baseUrl}/api/title-games?search=ARCADE&limit=1`);
+  assert.equal(firstResponse.status, 200);
+  const firstPage = await firstResponse.json() as {
+    games: Array<{ id: string; game_name: string }>;
+    nextCursor: string;
+  };
+  assert.deepEqual(firstPage.games.map(({ game_name }) => game_name), ["Arcade Quest"]);
+  assert.ok(firstPage.nextCursor);
+
+  const secondResponse = await fetch(
+    `${baseUrl}/api/title-games?search=arcade&limit=1&cursor=${encodeURIComponent(firstPage.nextCursor)}`
+  );
+  const secondPage = await secondResponse.json() as {
+    games: Array<{ id: string; game_name: string }>;
+    nextCursor: string;
+  };
+  assert.deepEqual(secondPage.games.map(({ game_name }) => game_name), ["Arcade Racer"]);
+  assert.equal(secondPage.nextCursor, "");
+});
+
+test("allows title-game list CORS preflight for the game origin", async () => {
+  const response = await fetch(`${baseUrl}/api/title-games`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: gameOrigin,
+      "Access-Control-Request-Method": "GET"
+    }
+  });
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), gameOrigin);
+  assert.match(response.headers.get("access-control-allow-methods") || "", /GET/);
+});
+
+test("rejects invalid title-game list parameters", async () => {
+  const invalidLimit = await fetch(`${baseUrl}/api/title-games?limit=101`);
+  assert.equal(invalidLimit.status, 400);
+
+  const invalidCursor = await fetch(`${baseUrl}/api/title-games?cursor=invalid`);
+  assert.equal(invalidCursor.status, 400);
+
+  const longSearch = await fetch(`${baseUrl}/api/title-games?search=${"a".repeat(101)}`);
+  assert.equal(longSearch.status, 400);
 });
 
 test("rejects empty title game names and disallowed origins", async () => {
