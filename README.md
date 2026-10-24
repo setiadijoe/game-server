@@ -21,10 +21,13 @@ access and must never be put in the browser. The server also accepts the legacy
 `SUPABASE_SERVICE_ROLE_KEY` variable.
 
 The `scores` table should contain `id` (varchar), `name` (varchar), `score`
-(int4), and `created_at` (timestamp with time zone, default `now()`). The
-server generates `id` as a ULID and leaves `created_at` to the database
-default. Use the project URL shown in Supabase for `SUPABASE_URL`; requests use
-HTTPS.
+(int4), `created_at` (timestamp with time zone, default `now()`), and the
+nullable `title_game_id` (varchar). The server generates `id` as a ULID and
+leaves `created_at` to the database default. Run
+`sql/backfill-scores-title-game-id.sql` once to add `title_game_id` and assign
+the existing score rows to the Snake Game ULID. The column has no default, so
+future score inserts can leave it NULL. Use the project URL shown in Supabase
+for `SUPABASE_URL`; requests use HTTPS.
 
 The `title_games` table should contain `id` (varchar), `game_name` (varchar),
 and `created_at` (timestamp with time zone). The server generates `id` as a
