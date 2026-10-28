@@ -34,6 +34,8 @@ and `created_at` (timestamp with time zone). The server generates `id` as a
 ULID and sets `created_at` when inserting a game name.
 Run the DDL in `sql/title-games-indexes.sql` in the Supabase SQL Editor to add
 the trigram search index and cursor-ordering index.
+Run `sql/20261028-1421-scores-title-game-id-index.sql` in the Supabase SQL Editor to add an
+index used to filter scores by `title_game_id`.
 If `GET /api/title-games` returns a permission error, run
 `sql/grant-title-games-select.sql` in the Supabase SQL Editor to allow the
 server's `service_role` to read title games.
@@ -43,7 +45,8 @@ server's `service_role` to read title games.
 The OpenAPI/Swagger specification is in [`openapi.yaml`](./openapi.yaml). Open
 it with Swagger Editor or Swagger UI to browse and try the endpoints.
 
-- `GET /api/scores` returns the top 3 scores by default and a `nextCursor`.
+- `GET /api/scores` requires `title_game_id` and returns that game's top 3 scores
+  by default and a `nextCursor`. Pass the game ID as `?title_game_id=...`.
   Pass a non-empty cursor as `?cursor=...` to get the next page; an empty
   cursor starts from the first page. `nextCursor` is an empty string when there
   are no more results. Use `?limit=25` to request up to 100 scores per page;

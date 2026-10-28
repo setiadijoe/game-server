@@ -84,9 +84,10 @@ export function createSupabaseScoreStore(config: SupabaseConfig): ScoreStore {
   }
 
   return {
-    async list(limit, cursor) {
+    async list(limit, titleGameId, cursor) {
       const url = new URL("/rest/v1/scores", projectUrl);
       url.searchParams.set("select", "id,name,score,created_at,title_game_id");
+      url.searchParams.set("title_game_id", `eq.${titleGameId}`);
       url.searchParams.set("order", "score.desc,id.asc");
       url.searchParams.set("limit", String(limit + 1));
       if (cursor) {
@@ -174,6 +175,12 @@ export async function handleScoresRequest(
   }
 
   if (request.method === "GET") {
+    const titleGameId = url.searchParams.get("title_game_id");
+    if (titleGameId === null || titleGameId.trim() === "") {
+      sendJson(response, 400, { error: "title_game_id is required" });
+      return;
+    }
+
     const requestedLimit = url.searchParams.get("limit");
     const limit = requestedLimit === null || requestedLimit === "" ? 3 : Number(requestedLimit);
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
@@ -195,7 +202,7 @@ export async function handleScoresRequest(
     }
 
     try {
-      const page: ScorePage = await scoreStore.list(limit, cursor);
+      const page: ScorePage = await scoreStore.list(limit, titleGameId, cursor);
       sendJson(response, 200, page);
     } catch (error) {
       console.error("Failed to read score data:", error);

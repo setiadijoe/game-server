@@ -17,14 +17,15 @@ const savedTitleGames: Array<{ id: string; created_at: string; game_name: string
   { id: snakeGameId, created_at: "2026-01-04T00:00:00.000Z", game_name: "Snake Game" },
   { id: "title-1", created_at: "2026-01-03T00:00:00.000Z", game_name: "Arcade Quest" },
   { id: "title-2", created_at: "2026-01-02T00:00:00.000Z", game_name: "Space Quest" },
-  { id: "title-3", created_at: "2026-01-01T00:00:00.000Z", game_name: "Arcade Racer" }
+  { id: "title-3", created_at: "2026-01-01T00:00:00.000Z", game_name: "Arcade Racer" },
+  { id: "01ARZ3NDEKTSV4RRFFQ69G5FAW", created_at: "2025-12-31T00:00:00.000Z", game_name: "Test Game" }
 ];
 const gameOrigin = "https://snake-game-teal-two.vercel.app";
 const server = createServer({
   frontendRoot: path.resolve(__dirname, "../../snake-game"),
   scoreStore: {
-    async list(limit, cursor) {
-      const ordered = [...savedScores].sort(
+    async list(limit, titleGameId, cursor) {
+      const ordered = savedScores.filter(({ title_game_id }) => title_game_id === titleGameId).sort(
         (left, right) => right.score - left.score || left.id.localeCompare(right.id)
       );
       const remaining = cursor
@@ -142,7 +143,18 @@ test("creates scores and reads them ordered by score", async () => {
   });
   assert.equal(secondResponse.status, 201);
 
-  const readResponse = await fetch(`${baseUrl}/api/scores`);
+  const otherGameScoreResponse = await fetch(`${baseUrl}/api/scores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: gameOrigin },
+    body: JSON.stringify({
+      name: "Arcade Player",
+      score: 100,
+      game_id: "01ARZ3NDEKTSV4RRFFQ69G5FAW"
+    })
+  });
+  assert.equal(otherGameScoreResponse.status, 201);
+
+  const readResponse = await fetch(`${baseUrl}/api/scores?title_game_id=${snakeGameId}`);
   const page = await readResponse.json() as {
     scores: Array<{ name: string; score: number }>;
     nextCursor: string;
@@ -152,10 +164,18 @@ test("creates scores and reads them ordered by score", async () => {
     ["Player One", 20]
   ]);
   assert.equal(page.nextCursor, "");
+
+  const otherGameResponse = await fetch(
+    `${baseUrl}/api/scores?title_game_id=01ARZ3NDEKTSV4RRFFQ69G5FAW`
+  );
+  const otherGamePage = await otherGameResponse.json() as {
+    scores: Array<{ name: string; score: number }>;
+  };
+  assert.deepEqual(otherGamePage.scores.map(({ name }) => name), ["Arcade Player"]);
 });
 
 test("defaults empty limit and cursor parameters", async () => {
-  const response = await fetch(`${baseUrl}/api/scores?limit=&cursor=`);
+  const response = await fetch(`${baseUrl}/api/scores?title_game_id=${snakeGameId}&limit=&cursor=`);
   assert.equal(response.status, 200);
   const page = await response.json() as {
     scores: Array<{ name: string; score: number }>;
@@ -163,6 +183,14 @@ test("defaults empty limit and cursor parameters", async () => {
   };
   assert.deepEqual(page.scores.map(({ score }) => score), [50, 20]);
   assert.equal(page.nextCursor, "");
+});
+
+test("requires title_game_id when listing scores", async () => {
+  for (const query of ["", "?title_game_id=", "?title_game_id=%20%20"]) {
+    const response = await fetch(`${baseUrl}/api/scores${query}`);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "title_game_id is required" });
+  }
 });
 
 test("paginates scores with a default page size of three", async () => {
@@ -175,7 +203,7 @@ test("paginates scores with a default page size of three", async () => {
     assert.equal(response.status, 201);
   }
 
-  const firstResponse = await fetch(`${baseUrl}/api/scores`);
+  const firstResponse = await fetch(`${baseUrl}/api/scores?title_game_id=${snakeGameId}`);
   const firstPage = await firstResponse.json() as {
     scores: Array<{ name: string; score: number }>;
     nextCursor: string;
@@ -184,7 +212,7 @@ test("paginates scores with a default page size of three", async () => {
   assert.ok(firstPage.nextCursor);
 
   const secondResponse = await fetch(
-    `${baseUrl}/api/scores?cursor=${encodeURIComponent(firstPage.nextCursor)}`
+    `${baseUrl}/api/scores?title_game_id=${snakeGameId}&cursor=${encodeURIComponent(firstPage.nextCursor)}`
   );
   const secondPage = await secondResponse.json() as {
     scores: Array<{ name: string; score: number }>;
@@ -195,7 +223,7 @@ test("paginates scores with a default page size of three", async () => {
 });
 
 test("rejects invalid score cursors", async () => {
-  const response = await fetch(`${baseUrl}/api/scores?cursor=invalid`);
+  const response = await fetch(`${baseUrl}/api/scores?title_game_id=${snakeGameId}&cursor=invalid`);
   assert.equal(response.status, 400);
 });
 

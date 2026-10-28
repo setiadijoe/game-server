@@ -7,7 +7,7 @@ export interface ScoreRecord {
 }
 
 export interface ScoreStore {
-  list(limit: number, cursor?: ScoreCursor): Promise<ScorePage>;
+  list(limit: number, titleGameId: string, cursor?: ScoreCursor): Promise<ScorePage>;
   create(name: string, score: number, gameId: string): Promise<ScoreRecord>;
   close?(): Promise<void>;
 }

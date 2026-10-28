@@ -18,8 +18,14 @@ paths:
     get:
       tags: [Scores]
       summary: List high scores
-      description: Returns scores ordered by score descending, then ID ascending.
+      description: Returns scores for a title game ordered by score descending, then ID ascending.
       parameters:
+        - name: title_game_id
+          in: query
+          description: ID of the title game whose scores should be listed.
+          required: true
+          schema:
+            type: string
         - name: limit
           in: query
           description: Number of scores per page. An omitted or empty value defaults to 3.
