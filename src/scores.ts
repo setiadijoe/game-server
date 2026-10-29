@@ -9,8 +9,8 @@ import type {
   SupabaseScoreRow
 } from "./interfaces";
 import {
-  ALLOWED_GAME_ORIGIN,
   isRecord,
+  isAllowedGameOrigin,
   readRequestBody,
   RequestError,
   sendJson
@@ -157,9 +157,10 @@ export async function handleScoresRequest(
   url: URL,
   scoreStore: ScoreStore
 ): Promise<void> {
-  const isAllowedOrigin = request.headers.origin === ALLOWED_GAME_ORIGIN;
+  const origin = request.headers.origin;
+  const isAllowedOrigin = isAllowedGameOrigin(origin);
   if (isAllowedOrigin) {
-    response.setHeader("Access-Control-Allow-Origin", ALLOWED_GAME_ORIGIN);
+    response.setHeader("Access-Control-Allow-Origin", origin);
     response.setHeader("Vary", "Origin");
   }
   if (request.method === "OPTIONS") {

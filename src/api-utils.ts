@@ -1,7 +1,21 @@
 import * as http from "node:http";
 
-export const ALLOWED_GAME_ORIGIN = "https://snake-game-teal-two.vercel.app";
+const ALLOWED_GAME_ORIGINS = new Set([
+  "https://snake-game-teal-two.vercel.app",
+  "https://tetris-game.vercel.app"
+]);
+const LOCAL_GAME_ORIGINS = new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+]);
 const MAX_BODY_SIZE = 16 * 1024;
+
+export function isAllowedGameOrigin(origin: string | undefined): origin is string {
+  if (!origin) return false;
+  if (ALLOWED_GAME_ORIGINS.has(origin)) return true;
+  const isLocalDevelopment = process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1";
+  return isLocalDevelopment && LOCAL_GAME_ORIGINS.has(origin);
+}
 
 export class RequestError extends Error {
   constructor(

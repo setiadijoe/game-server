@@ -67,8 +67,11 @@ it with Swagger Editor or Swagger UI to browse and try the endpoints.
 Score player names must contain 1–30 characters after trimming, and scores must
 be non-negative integers. Game names must contain at least one non-whitespace
 character. Score and title-game submissions and browser CORS requests are
-accepted only from `https://snake-game-teal-two.vercel.app`. The server responds
-with `201 Created` and the saved record.
+accepted only from `https://snake-game-teal-two.vercel.app` and
+`https://tetris-game.vercel.app`. Local Tetris development origins
+(`http://localhost:5173` and `http://127.0.0.1:5173`) are accepted only when
+running outside production and Vercel. The server responds with `201 Created`
+and the saved record.
 
 The origin check limits browser-based cross-origin submissions; it is not
 authentication, because non-browser clients can forge the `Origin` header.

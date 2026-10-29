@@ -6,6 +6,7 @@ import handler, { createServer } from "./src/server";
 import { InvalidGameError } from "./src/scores";
 
 const snakeGameId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+const tetrisGameId = "01M5TR3G007K9J2M4N5P6R7S8T";
 const savedScores: Array<{
   id: string;
   name: string;
@@ -18,9 +19,12 @@ const savedTitleGames: Array<{ id: string; created_at: string; game_name: string
   { id: "title-1", created_at: "2026-01-03T00:00:00.000Z", game_name: "Arcade Quest" },
   { id: "title-2", created_at: "2026-01-02T00:00:00.000Z", game_name: "Space Quest" },
   { id: "title-3", created_at: "2026-01-01T00:00:00.000Z", game_name: "Arcade Racer" },
-  { id: "01ARZ3NDEKTSV4RRFFQ69G5FAW", created_at: "2025-12-31T00:00:00.000Z", game_name: "Test Game" }
+  { id: "01ARZ3NDEKTSV4RRFFQ69G5FAW", created_at: "2025-12-31T00:00:00.000Z", game_name: "Test Game" },
+  { id: tetrisGameId, created_at: "2025-12-30T00:00:00.000Z", game_name: "Tetris" }
 ];
 const gameOrigin = "https://snake-game-teal-two.vercel.app";
+const tetrisOrigin = "https://tetris-game.vercel.app";
+const localTetrisOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 const server = createServer({
   frontendRoot: path.resolve(__dirname, "../../snake-game"),
   scoreStore: {
@@ -227,18 +231,20 @@ test("rejects invalid score cursors", async () => {
   assert.equal(response.status, 400);
 });
 
-test("allows browser CORS preflight from the game origin only", async () => {
-  const response = await fetch(`${baseUrl}/api/scores`, {
-    method: "OPTIONS",
-    headers: {
-      Origin: gameOrigin,
-      "Access-Control-Request-Method": "POST",
-      "Access-Control-Request-Headers": "content-type"
-    }
-  });
-  assert.equal(response.status, 204);
-  assert.equal(response.headers.get("access-control-allow-origin"), gameOrigin);
-  assert.match(response.headers.get("access-control-allow-methods") || "", /POST/);
+test("allows browser CORS from game and local development origins", async () => {
+  for (const origin of [gameOrigin, tetrisOrigin, ...localTetrisOrigins]) {
+    const response = await fetch(`${baseUrl}/api/scores`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: origin,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type"
+      }
+    });
+    assert.equal(response.status, 204);
+    assert.equal(response.headers.get("access-control-allow-origin"), origin);
+    assert.match(response.headers.get("access-control-allow-methods") || "", /POST/);
+  }
 
   const rejectedResponse = await fetch(`${baseUrl}/api/scores`, {
     method: "OPTIONS",
@@ -248,6 +254,47 @@ test("allows browser CORS preflight from the game origin only", async () => {
     }
   });
   assert.equal(rejectedResponse.status, 403);
+
+  const previousVercel = process.env.VERCEL;
+  const previousNodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.VERCEL = "1";
+    process.env.NODE_ENV = "production";
+    for (const origin of localTetrisOrigins) {
+      const localOriginResponse = await fetch(`${baseUrl}/api/scores`, {
+        method: "OPTIONS",
+        headers: {
+          Origin: origin,
+          "Access-Control-Request-Method": "POST"
+        }
+      });
+      assert.equal(localOriginResponse.status, 403);
+    }
+  } finally {
+    if (previousVercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = previousVercel;
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  }
+});
+
+test("allows Tetris to submit and fetch scores for its title game", async () => {
+  const submittedResponse = await fetch(`${baseUrl}/api/scores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: tetrisOrigin },
+    body: JSON.stringify({ name: "Tetris Player", score: 50, game_id: tetrisGameId })
+  });
+  assert.equal(submittedResponse.status, 201);
+  assert.equal(submittedResponse.headers.get("access-control-allow-origin"), tetrisOrigin);
+
+  const scoresResponse = await fetch(
+    `${baseUrl}/api/scores?title_game_id=${tetrisGameId}&limit=1`,
+    { headers: { Origin: tetrisOrigin } }
+  );
+  assert.equal(scoresResponse.status, 200);
+  assert.equal(scoresResponse.headers.get("access-control-allow-origin"), tetrisOrigin);
+  const page = await scoresResponse.json() as { scores: Array<{ name: string; score: number }> };
+  assert.deepEqual(page.scores.map(({ name, score }) => [name, score]), [["Tetris Player", 50]]);
 });
 
 test("rejects invalid scores and JSON bodies", async () => {
