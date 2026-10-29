@@ -12,7 +12,11 @@ const MAX_BODY_SIZE = 16 * 1024;
 
 export function isAllowedGameOrigin(origin: string | undefined): origin is string {
   if (!origin) return false;
-  if (ALLOWED_GAME_ORIGINS.has(origin)) return true;
+  const configuredOrigins = (process.env.ALLOWED_GAME_ORIGINS ?? "")
+    .split(",")
+    .map((configuredOrigin) => configuredOrigin.trim())
+    .filter(Boolean);
+  if (ALLOWED_GAME_ORIGINS.has(origin) || configuredOrigins.includes(origin)) return true;
   const isLocalDevelopment = process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1";
   return isLocalDevelopment && LOCAL_GAME_ORIGINS.has(origin);
 }

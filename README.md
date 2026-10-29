@@ -68,10 +68,13 @@ Score player names must contain 1–30 characters after trimming, and scores mus
 be non-negative integers. Game names must contain at least one non-whitespace
 character. Score and title-game submissions and browser CORS requests are
 accepted only from `https://snake-game-teal-two.vercel.app` and
-`https://tetris-game.vercel.app`. Local Tetris development origins
-(`http://localhost:5173` and `http://127.0.0.1:5173`) are accepted only when
-running outside production and Vercel. The server responds with `201 Created`
-and the saved record.
+`https://tetris-game.vercel.app`, plus any exact origins listed in the
+comma-separated `ALLOWED_GAME_ORIGINS` environment variable. Add newly deployed
+game origins there and redeploy; for example:
+`ALLOWED_GAME_ORIGINS=https://tetris-game-navy-seven.vercel.app`. Local Tetris
+development origins (`http://localhost:5173` and `http://127.0.0.1:5173`) are
+accepted only when running outside production and Vercel. The server responds
+with `201 Created` and the saved record.
 
 The origin check limits browser-based cross-origin submissions; it is not
 authentication, because non-browser clients can forge the `Origin` header.
@@ -83,8 +86,10 @@ and test the API.
 
 Deploy this directory as the Vercel project root. Add `SUPABASE_URL` and
 `SUPABASE_SECRET_KEY` to the Vercel project's environment variables for each
-deployment environment, then redeploy. The `api/scores.ts` and `api/title-games.ts` functions serve
-their respective endpoints and handle browser CORS preflight requests.
+deployment environment. Set `ALLOWED_GAME_ORIGINS` to a comma-separated list
+of additional deployed game origins, then redeploy after changing it. The
+`api/scores.ts` and `api/title-games.ts` functions serve their respective
+endpoints and handle browser CORS preflight requests.
 
 Leave Vercel's Output Directory unset so it detects the `api/` function.
 The API files are Vercel function entry points; the reusable server

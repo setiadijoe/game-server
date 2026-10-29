@@ -273,13 +273,10 @@ components:
       name: Origin
       in: header
       required: true
-      description: Must equal one of the configured game origins.
+      description: Must equal a built-in game origin or an origin in ALLOWED_GAME_ORIGINS.
       schema:
         type: string
         format: uri
-        enum:
-          - https://snake-game-teal-two.vercel.app
-          - https://tetris-game.vercel.app
   responses:
     BadRequest:
       description: Invalid request data, query parameter, cursor, or JSON body.
