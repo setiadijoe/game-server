@@ -120,6 +120,10 @@ test("exports a request handler for serverless deployments", async () => {
   if (!address || typeof address === "string") throw new Error("Handler server failed to start");
 
   try {
+    const healthResponse = await fetch(`http://127.0.0.1:${address.port}/api/health`);
+    assert.equal(healthResponse.status, 200);
+    assert.deepEqual(await healthResponse.json(), { status: "ok" });
+
     const response = await fetch(`http://127.0.0.1:${address.port}/not-found`);
     assert.equal(response.status, 404);
     assert.deepEqual(await response.json(), { error: "Not found" });
@@ -128,6 +132,21 @@ test("exports a request handler for serverless deployments", async () => {
       handlerServer.close((error) => error ? reject(error) : resolve())
     );
   }
+});
+
+test("provides local health and HEAD checks", async () => {
+  const response = await fetch(`${baseUrl}/health`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: "ok" });
+  assert.equal(response.headers.get("cache-control"), "no-store");
+
+  const headResponse = await fetch(`${baseUrl}/health`, { method: "HEAD" });
+  assert.equal(headResponse.status, 200);
+  assert.equal(await headResponse.text(), "");
+
+  const unsupportedMethod = await fetch(`${baseUrl}/health`, { method: "POST" });
+  assert.equal(unsupportedMethod.status, 405);
+  assert.equal(unsupportedMethod.headers.get("allow"), "GET, HEAD");
 });
 
 test("creates scores and reads them ordered by score", async () => {

@@ -45,6 +45,10 @@ server's `service_role` to read title games.
 The OpenAPI/Swagger specification is in [`openapi.yaml`](./openapi.yaml). Open
 it with Swagger Editor or Swagger UI to browse and try the endpoints.
 
+- `GET /health` returns `{"status":"ok"}` when the game API is reachable.
+  `HEAD /health` can be used for a bodyless availability check. Both methods
+  work locally and on Vercel; use `https://api-games.nunbun.sbs/health` after
+  configuring the domain.
 - `GET /api/scores` requires `title_game_id` and returns that game's top 3 scores
   by default and a `nextCursor`. Pass the game ID as `?title_game_id=...`.
   Pass a non-empty cursor as `?cursor=...` to get the next page; an empty

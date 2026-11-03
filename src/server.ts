@@ -28,6 +28,24 @@ function getSupabaseConfig(): SupabaseConfig {
   return { url, key };
 }
 
+function handleHealthRequest(
+  request: http.IncomingMessage,
+  response: http.ServerResponse
+): void {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    response.setHeader("Allow", "GET, HEAD");
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  response.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff"
+  });
+  response.end(request.method === "HEAD" ? undefined : JSON.stringify({ status: "ok" }));
+}
+
 function serveFrontend(
   request: http.IncomingMessage,
   response: http.ServerResponse,
@@ -84,6 +102,10 @@ function createServer(options: CreateServerOptions = {}): http.Server {
 
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
+    if (url.pathname === "/health" || url.pathname === "/api/health") {
+      handleHealthRequest(request, response);
+      return;
+    }
     if (url.pathname === "/api/scores") {
       await handleScoresRequest(request, response, url, scoreStore);
       return;
@@ -107,6 +129,10 @@ let vercelServer: http.Server | undefined;
 
 function handler(request: http.IncomingMessage, response: http.ServerResponse): void {
   const pathname = new URL(request.url || "/", "http://localhost").pathname;
+  if (pathname === "/api/health") {
+    handleHealthRequest(request, response);
+    return;
+  }
   if (pathname !== "/api/scores" && pathname !== "/api/title-games") {
     sendJson(response, 404, { error: "Not found" });
     return;
