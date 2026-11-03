@@ -1,3 +1,5 @@
+import type { ApiRateLimiter } from "./rate-limit";
+
 export interface ScoreRecord {
   id: string;
   name: string;
@@ -47,6 +49,7 @@ export interface CreateServerOptions {
   frontendRoot?: string;
   scoreStore?: ScoreStore;
   titleGameStore?: TitleGameStore;
+  rateLimiter?: ApiRateLimiter;
 }
 
 export interface SupabaseConfig {

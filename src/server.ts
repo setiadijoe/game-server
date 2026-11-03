@@ -1,11 +1,17 @@
 import "dotenv/config";
 import * as fs from "node:fs";
 import * as http from "node:http";
+import { isIP } from "node:net";
 import * as path from "node:path";
 import type { CreateServerOptions, ScoreStore, SupabaseConfig, TitleGameStore } from "./interfaces";
-import { sendJson } from "./api-utils";
+import { isAllowedGameOrigin, sendJson } from "./api-utils";
 import { createSupabaseScoreStore, handleScoresRequest } from "./scores";
 import { createSupabaseTitleGameStore, handleTitleGamesRequest } from "./title-games";
+import {
+  createRateLimiter,
+  type ApiRateLimiter,
+  type RateLimitCategory
+} from "./rate-limit";
 
 const FRONTEND_ROOT = path.resolve(__dirname, "../../../snake-game");
 const CONTENT_TYPES: Record<string, string> = {
@@ -44,6 +50,56 @@ function handleHealthRequest(
     "X-Content-Type-Options": "nosniff"
   });
   response.end(request.method === "HEAD" ? undefined : JSON.stringify({ status: "ok" }));
+}
+
+function getClientAddress(request: http.IncomingMessage): string {
+  const forwardedFor = request.headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string") {
+    const address = forwardedFor.split(",")[0]?.trim();
+    if (address && isIP(address)) return address;
+  }
+  return request.socket.remoteAddress || "unknown";
+}
+
+async function applyRateLimit(
+  request: http.IncomingMessage,
+  response: http.ServerResponse,
+  rateLimiter: ApiRateLimiter
+): Promise<boolean> {
+  if (request.method === "OPTIONS") return true;
+
+  const category: RateLimitCategory = request.method === "GET" ? "read" : "write";
+  try {
+    const result = await rateLimiter.limit(getClientAddress(request), category);
+    if (result.success) return true;
+
+    const origin = request.headers.origin;
+    if (isAllowedGameOrigin(origin)) {
+      response.setHeader("Access-Control-Allow-Origin", origin);
+      response.setHeader("Vary", "Origin");
+    }
+    const retryAfter = Math.max(1, Math.ceil((result.reset - Date.now()) / 1000));
+    response.writeHead(429, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Retry-After": String(retryAfter),
+      "RateLimit-Limit": String(result.limit),
+      "RateLimit-Remaining": String(result.remaining),
+      "RateLimit-Reset": String(Math.ceil(result.reset / 1000)),
+      "X-Content-Type-Options": "nosniff"
+    });
+    response.end(JSON.stringify({ error: "Too many requests" }));
+    return false;
+  } catch (error) {
+    console.error("Failed to check API rate limit:", error);
+    const origin = request.headers.origin;
+    if (isAllowedGameOrigin(origin)) {
+      response.setHeader("Access-Control-Allow-Origin", origin);
+      response.setHeader("Vary", "Origin");
+    }
+    sendJson(response, 503, { error: "Rate limiter unavailable" });
+    return false;
+  }
 }
 
 function serveFrontend(
@@ -98,6 +154,7 @@ function createServer(options: CreateServerOptions = {}): http.Server {
     createSupabaseScoreStore(getConfig());
   const titleGameStore: TitleGameStore = options.titleGameStore ||
     createSupabaseTitleGameStore(getConfig());
+  const rateLimiter = options.rateLimiter || createRateLimiter();
   const frontendRoot = options.frontendRoot || FRONTEND_ROOT;
 
   const server = http.createServer(async (request, response) => {
@@ -107,10 +164,12 @@ function createServer(options: CreateServerOptions = {}): http.Server {
       return;
     }
     if (url.pathname === "/api/scores") {
+      if (!await applyRateLimit(request, response, rateLimiter)) return;
       await handleScoresRequest(request, response, url, scoreStore);
       return;
     }
     if (url.pathname === "/api/title-games") {
+      if (!await applyRateLimit(request, response, rateLimiter)) return;
       await handleTitleGamesRequest(request, response, url, titleGameStore);
       return;
     }

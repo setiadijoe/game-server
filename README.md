@@ -11,6 +11,7 @@ cd game-server
 npm install
 cp .env.example .env
 # Set SUPABASE_URL and SUPABASE_SECRET_KEY from your Supabase project
+# Set the Upstash REST URL and write token shown in .env.example
 npm start
 ```
 
@@ -49,6 +50,16 @@ it with Swagger Editor or Swagger UI to browse and try the endpoints.
   `HEAD /health` can be used for a bodyless availability check. Both methods
   work locally and on Vercel; use `https://api-games.nunbun.sbs/health` after
   configuring the domain.
+- The API rate-limits each client IP to 120 read requests and 10 write requests
+  per minute using Upstash Redis sliding windows. Configure the Upstash REST URL
+  and write token in local `.env` and the Vercel project settings. The server
+  accepts `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`,
+  `KV_REST_API_URL`/`KV_REST_API_TOKEN`, or a single Vercel-prefixed pair such
+  as `REDIS_NUNBUN_KV_REST_API_URL`/`REDIS_NUNBUN_KV_REST_API_TOKEN`. The
+  read-only token and Redis TCP URL are not used; rate limiting must write
+  counters. Exceeding a limit returns `429` with a `Retry-After` header. CORS
+  preflight requests and `/health` are not limited. If Upstash is unavailable,
+  API requests fail closed with `503`.
 - `GET /api/scores` requires `title_game_id` and returns that game's top 3 scores
   by default and a `nextCursor`. Pass the game ID as `?title_game_id=...`.
   Pass a non-empty cursor as `?cursor=...` to get the next page; an empty
@@ -82,6 +93,9 @@ with `201 Created` and the saved record.
 
 The origin check limits browser-based cross-origin submissions; it is not
 authentication, because non-browser clients can forge the `Origin` header.
+The rate limiter uses the first IP in `X-Forwarded-For`; when self-hosting,
+ensure this header is set by a trusted reverse proxy and cannot be supplied by
+clients directly.
 
 Set `PORT` to change the default port. Run `npm test` to compile the TypeScript
 and test the API.
@@ -89,9 +103,13 @@ and test the API.
 ## Deploy to Vercel
 
 Deploy this directory as the Vercel project root. Add `SUPABASE_URL` and
-`SUPABASE_SECRET_KEY` to the Vercel project's environment variables for each
-deployment environment. Set `ALLOWED_GAME_ORIGINS` to a comma-separated list
-of additional deployed game origins, then redeploy after changing it. The
+`SUPABASE_SECRET_KEY` and the Upstash REST URL plus its **write-capable** REST
+token to the Vercel project's environment variables for each deployment
+environment. The Vercel Redis integration's `REDIS_<NAME>_KV_REST_API_URL` and
+`REDIS_<NAME>_KV_REST_API_TOKEN` pair is supported. Do not use
+`REDIS_<NAME>_KV_REST_API_READ_ONLY_TOKEN` for rate limiting. Set
+`ALLOWED_GAME_ORIGINS` to a comma-separated list of additional deployed game
+origins, then redeploy after changing it. The
 `api/scores.ts` and `api/title-games.ts` functions serve their respective
 endpoints and handle browser CORS preflight requests.
 

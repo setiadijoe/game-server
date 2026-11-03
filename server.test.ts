@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { after, before, test } from "node:test";
 import handler, { createServer } from "./src/server";
 import { InvalidGameError } from "./src/scores";
+import { getRateLimitConfig } from "./src/rate-limit";
 
 const snakeGameId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const tetrisGameId = "01M5TR3G007K9J2M4N5P6R7S8T";
@@ -96,6 +97,25 @@ const server = createServer({
       savedTitleGames.push(record);
       return record;
     }
+  },
+  rateLimiter: {
+    async limit(identifier, category) {
+      if (identifier === "203.0.113.42") {
+        return {
+          success: false,
+          limit: category === "read" ? 120 : 10,
+          remaining: 0,
+          reset: Date.now() + 30_000
+        };
+      }
+      if (identifier === "203.0.113.43") throw new Error("test Redis failure");
+      return {
+        success: true,
+        limit: category === "read" ? 120 : 10,
+        remaining: (category === "read" ? 120 : 10) - 1,
+        reset: Date.now() + 60_000
+      };
+    }
   }
 });
 let baseUrl = "";
@@ -147,6 +167,90 @@ test("provides local health and HEAD checks", async () => {
   const unsupportedMethod = await fetch(`${baseUrl}/health`, { method: "POST" });
   assert.equal(unsupportedMethod.status, 405);
   assert.equal(unsupportedMethod.headers.get("allow"), "GET, HEAD");
+});
+
+test("reads standard and Vercel-prefixed writable Redis REST credentials", () => {
+  assert.deepEqual(getRateLimitConfig({
+    UPSTASH_REDIS_REST_URL: "https://upstash.example",
+    UPSTASH_REDIS_REST_TOKEN: "write-token"
+  }), {
+    url: "https://upstash.example",
+    token: "write-token"
+  });
+
+  assert.deepEqual(getRateLimitConfig({
+    REDIS_NUNBUN_KV_REST_API_URL: "https://vercel-upstash.example",
+    REDIS_NUNBUN_KV_REST_API_TOKEN: "vercel-write-token",
+    REDIS_NUNBUN_KV_REST_API_READ_ONLY_TOKEN: "read-only-token",
+    REDIS_NUNBUN_KV_URL: "rediss://not-used.example"
+  }), {
+    url: "https://vercel-upstash.example",
+    token: "vercel-write-token"
+  });
+});
+
+test("does not use a read-only token or silently choose between Redis databases", () => {
+  assert.throws(
+    () => getRateLimitConfig({
+      REDIS_NUNBUN_KV_REST_API_URL: "https://vercel-upstash.example",
+      REDIS_NUNBUN_KV_REST_API_READ_ONLY_TOKEN: "read-only-token"
+    }),
+    /write token/
+  );
+  assert.throws(
+    () => getRateLimitConfig({
+      REDIS_ONE_KV_REST_API_URL: "https://one.example",
+      REDIS_ONE_KV_REST_API_TOKEN: "one-token",
+      REDIS_TWO_KV_REST_API_URL: "https://two.example",
+      REDIS_TWO_KV_REST_API_TOKEN: "two-token"
+    }),
+    /Multiple prefixed/
+  );
+});
+
+test("rate limits API reads and writes by forwarded client IP", async () => {
+  const readResponse = await fetch(`${baseUrl}/api/title-games`, {
+    headers: {
+      Origin: gameOrigin,
+      "X-Forwarded-For": "203.0.113.42, 10.0.0.1"
+    }
+  });
+  assert.equal(readResponse.status, 429);
+  assert.deepEqual(await readResponse.json(), { error: "Too many requests" });
+  assert.equal(readResponse.headers.get("ratelimit-limit"), "120");
+  assert.equal(readResponse.headers.get("ratelimit-remaining"), "0");
+  assert.equal(readResponse.headers.get("retry-after"), "30");
+  assert.equal(readResponse.headers.get("access-control-allow-origin"), gameOrigin);
+
+  const writeResponse = await fetch(`${baseUrl}/api/title-games`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: gameOrigin,
+      "X-Forwarded-For": "203.0.113.42"
+    },
+    body: JSON.stringify({ game_name: "Rate limited game" })
+  });
+  assert.equal(writeResponse.status, 429);
+  assert.equal(writeResponse.headers.get("ratelimit-limit"), "10");
+
+  const preflightResponse = await fetch(`${baseUrl}/api/title-games`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: gameOrigin,
+      "Access-Control-Request-Method": "GET",
+      "X-Forwarded-For": "203.0.113.42"
+    }
+  });
+  assert.equal(preflightResponse.status, 204);
+});
+
+test("fails closed when the shared rate limiter is unavailable", async () => {
+  const response = await fetch(`${baseUrl}/api/scores?title_game_id=${snakeGameId}`, {
+    headers: { "X-Forwarded-For": "203.0.113.43" }
+  });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "Rate limiter unavailable" });
 });
 
 test("creates scores and reads them ordered by score", async () => {

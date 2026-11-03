@@ -5,6 +5,7 @@ info:
   description: |
     API for score submissions and title-game catalog management.
     The local server is available at http://localhost:3000.
+    Rate limits are 120 read requests and 10 write requests per client IP per minute.
 servers:
   - url: http://localhost:3000
     description: Local development server
@@ -57,6 +58,10 @@ paths:
                 nextCursor: ""
         "400":
           $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/RateLimiterUnavailable"
         "500":
           description: Could not read scores.
           content:
@@ -97,6 +102,10 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "403":
           $ref: "#/components/responses/OriginNotAllowed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/RateLimiterUnavailable"
         "413":
           $ref: "#/components/responses/BodyTooLarge"
         "500":
@@ -184,6 +193,10 @@ paths:
                 nextCursor: ""
         "400":
           $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/RateLimiterUnavailable"
         "500":
           description: Could not read title games.
           content:
@@ -222,6 +235,10 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "403":
           $ref: "#/components/responses/OriginNotAllowed"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/RateLimiterUnavailable"
         "413":
           $ref: "#/components/responses/BodyTooLarge"
         "500":
@@ -310,6 +327,37 @@ components:
             $ref: "#/components/schemas/Error"
           example:
             error: Request body is too large
+    RateLimited:
+      description: The client IP exceeded its per-minute limit.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying.
+        RateLimit-Limit:
+          schema:
+            type: integer
+        RateLimit-Remaining:
+          schema:
+            type: integer
+        RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp in seconds when the limit resets.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Too many requests
+    RateLimiterUnavailable:
+      description: The shared rate-limiting service is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Rate limiter unavailable
     MethodNotAllowed:
       description: HTTP method is not supported for this path.
       headers:
