@@ -23,9 +23,9 @@ const savedTitleGames: Array<{ id: string; created_at: string; game_name: string
   { id: "01ARZ3NDEKTSV4RRFFQ69G5FAW", created_at: "2025-12-31T00:00:00.000Z", game_name: "Test Game" },
   { id: tetrisGameId, created_at: "2025-12-30T00:00:00.000Z", game_name: "Tetris" }
 ];
-const gameOrigin = "https://snake-game-teal-two.vercel.app";
-const tetrisOrigin = "https://tetris-game-navy-seven.vercel.app";
-const previousTetrisOrigin = "https://tetris-game.vercel.app";
+const gameOrigin = "https://snake.nunbun.sbs";
+const tetrisOrigin = "https://tetris.nunbun.sbs";
+const breakoutOrigin = "https://breakout.nunbun.sbs";
 const additionalGameOrigin = "https://preview-game.example.com";
 const localTetrisOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 const server = createServer({
@@ -363,8 +363,8 @@ test("allows browser CORS from game and local development origins", async () => 
     for (const origin of [
       gameOrigin,
       tetrisOrigin,
+      breakoutOrigin,
       additionalGameOrigin,
-      previousTetrisOrigin,
       ...localTetrisOrigins
     ]) {
       const response = await fetch(`${baseUrl}/api/scores`, {

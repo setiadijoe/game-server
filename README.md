@@ -82,10 +82,10 @@ it with Swagger Editor or Swagger UI to browse and try the endpoints.
 Score player names must contain 1–30 characters after trimming, and scores must
 be non-negative integers. Game names must contain at least one non-whitespace
 character. Score and title-game submissions and browser CORS requests are
-accepted only from `https://snake-game-teal-two.vercel.app` and
-`https://tetris-game.vercel.app`, plus any exact origins listed in the
-comma-separated `ALLOWED_GAME_ORIGINS` environment variable. Add newly deployed
-game origins there and redeploy; for example:
+accepted only from `https://snake.nunbun.sbs`, `https://tetris.nunbun.sbs`, and
+`https://breakout.nunbun.sbs`, plus any
+exact origins listed in the comma-separated `ALLOWED_GAME_ORIGINS` environment
+variable. Add newly deployed game origins there and redeploy; for example:
 `ALLOWED_GAME_ORIGINS=https://tetris-game-navy-seven.vercel.app`. Local Tetris
 development origins (`http://localhost:5173` and `http://127.0.0.1:5173`) are
 accepted only when running outside production and Vercel. The server responds

@@ -1,8 +1,9 @@
 import * as http from "node:http";
 
 const ALLOWED_GAME_ORIGINS = new Set([
-  "https://snake-game-teal-two.vercel.app",
-  "https://tetris-game.vercel.app"
+  "https://snake.nunbun.sbs",
+  "https://tetris.nunbun.sbs",
+  "https://breakout.nunbun.sbs"
 ]);
 const LOCAL_GAME_ORIGINS = new Set([
   "http://localhost:5173",
